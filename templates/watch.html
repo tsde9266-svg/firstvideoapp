@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ video.title }} - VideoShare</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="nav-container">
+            <a href="/" class="logo">VideoShare</a>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    {% if 'user' in session %}
+                        {% if session.user.role == 'creator' %}
+                            <li><a href="/dashboard">Dashboard</a></li>
+                        {% endif %}
+                        <li><a href="/logout">Logout ({{ session.user.username }})</a></li>
+                    {% else %}
+                        <li><a href="/login">Login</a></li>
+                        <li><a href="/register">Register</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="video-player-container">
+            <div class="video-player">
+                <video controls poster="https://placehold.co/800x450/1e1e1e/00f2ea?text=Video+Thumbnail">
+                    <source src="{{ video.url }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="video-details">
+                <h1>{{ video.title }}</h1>
+                <div class="video-stats">
+                    <span>🎬 Publisher: {{ video.publisher }}</span>
+                    <span>🎭 Genre: {{ video.genre or 'General' }}</span>
+                    <span>🔞 Rating: {{ video.age_rating or 'All' }}</span>
+                </div>
+                {% if video.producer %}
+                <p><strong>Producer:</strong> {{ video.producer }}</p>
+                {% endif %}
+                <div class="video-actions-bar">
+                    <button class="btn-secondary" onclick="history.back()">← Back</button>
+                    <button class="btn-primary" onclick="location.reload()">↻ Refresh</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="comments-section">
+            <h2>💬 Comments & Ratings</h2>
+            
+            {% if 'user' in session %}
+            <form method="post" action="/comment" class="comment-form">
+                <h3>Add Your Comment</h3>
+                <div class="form-group">
+                    <label for="comment">Your Comment</label>
+                    <textarea id="comment" name="comment" rows="3" required placeholder="Share your thoughts about this video..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rating">Rating (1-5 stars)</label>
+                        <select id="rating" name="rating" required>
+                            <option value="">Select rating</option>
+                            <option value="5">★★★★★ 5 Stars - Excellent</option>
+                            <option value="4">★★★★☆ 4 Stars - Good</option>
+                            <option value="3">★★★☆☆ 3 Stars - Average</option>
+                            <option value="2">★★☆☆☆ 2 Stars - Poor</option>
+                            <option value="1">★☆☆☆☆ 1 Star - Terrible</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="align-self: flex-end;">
+                        <input type="hidden" name="video_id" value="{{ video.id }}">
+                        <button type="submit" class="btn-primary">Post Comment</button>
+                    </div>
+                </div>
+            </form>
+            {% else %}
+            <div class="login-prompt">
+                <p><a href="/login" class="btn-primary">Login</a> to post comments and ratings.</p>
+            </div>
+            {% endif %}
+
+            <div class="mt-2">
+                <h3>Recent Comments ({{ comments|length }})</h3>
+                {% if comments %}
+                    {% for comment in comments %}
+                    <div class="comment">
+                        <div class="comment-header">
+                            <strong>👤 {{ comment.username }}</strong>
+                            <div class="rating-stars">
+                                {% for i in range(comment.rating|int) %}★{% endfor %}
+                                {% for i in range(5 - comment.rating|int) %}☆{% endfor %}
+                                ({{ comment.rating }}/5)
+                            </div>
+                        </div>
+                        <div class="comment-text">{{ comment.comment }}</div>
+                        <div class="comment-date">{{ comment.created_at or 'Just now' }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <h3>📭 No comments yet</h3>
+                        <p>Be the first to comment on this video!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+</body>
+</html>

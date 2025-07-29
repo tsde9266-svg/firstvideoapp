@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - VideoShare</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="nav-container">
+            <a href="/" class="logo">VideoShare</a>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/login">Login</a></li>
+                    <li><a href="/register">Register</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="form-container">
+            <h2 class="text-center">Create Account</h2>
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div style="background: rgba(255, 0, 80, 0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; color: #ff6b8b;">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="post">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Account Type</label>
+                    <select id="role" name="role" required>
+                        <option value="">Select account type</option>
+                        <option value="creator">Creator (Can upload videos)</option>
+                        <option value="consumer">Consumer (Can watch and comment)</option>
+                    </select>
+                </div>
+                <button type="submit">Create Account</button>
+            </form>
+            
+            <p class="text-center mt-2">
+                Already have an account? <a href="/login" style="color: var(--secondary-color);">Login here</a>
+            </p>
+        </div>
+    </main>
+</body>
+</html>

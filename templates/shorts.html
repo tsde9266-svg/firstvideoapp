@@ -1,0 +1,570 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VideoShare Shorts</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="shorts-body">
+    <header>
+        <div class="nav-container">
+            <a href="/" class="logo">VideoShare</a>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/shorts" class="active">Shorts</a></li>
+                    {% if 'user' in session %}
+                        {% if session.user.role == 'creator' %}
+                            <li><a href="/dashboard">Dashboard</a></li>
+                        {% endif %}
+                        <li><a href="/logout">Logout ({{ session.user.username }})</a></li>
+                    {% else %}
+                        <li><a href="/login">Login</a></li>
+                        <li><a href="/register">Register</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="shorts-page-container">
+        <div class="shorts-container" id="shortsContainer">
+            {% for video in videos %}
+            <div class="short-item" data-video-id="{{ video.id }}">
+                <div class="video-wrapper">
+                    <video 
+                        class="shorts-video" 
+                        webkit-playsinline 
+                        playsinline 
+                        preload="metadata"
+                        poster="https://placehold.co/400x700/1e1e1e/00f2ea?text={{ video.title|urlencode }}">
+                        <source src="{{ video.url }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    
+                    <div class="play-overlay" onclick="togglePlay(this)">
+                        <i class="fas fa-play"></i>
+                    </div>
+                </div>
+                
+                <div class="video-info-bar">
+                    <div class="video-header">
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="username">@{{ video.publisher }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="video-content">
+                        <h3 class="video-title">{{ video.title }}</h3>
+                        <p class="video-description">{{ video.description or 'No description provided' }}</p>
+                    </div>
+                    
+                    <div class="video-stats">
+                        <button class="stat-button like-button" onclick="likeVideo(this)">
+                            <i class="fas fa-heart"></i>
+                            <span class="count">{{ video.like_count }}</span>
+                        </button>
+                        
+                        <button class="stat-button comment-button" onclick="window.location.href='/watch/{{ video.id }}'">
+                            <i class="fas fa-comment"></i>
+                            <span class="count">{{ video.comment_count }}</span>
+                        </button>
+                        
+                        <button class="stat-button share-button">
+                            <i class="fas fa-share"></i>
+                            <span class="count">Share</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const videos = document.querySelectorAll('.shorts-video');
+            const container = document.getElementById('shortsContainer');
+            let currentVideoIndex = 0;
+            let isScrolling = false;
+            
+            if (videos.length > 0) {
+                setTimeout(() => {
+                    videos[0].play().catch(e => console.log("Autoplay prevented"));
+                    updatePlayButton(videos[0], true);
+                }, 100);
+            }
+            
+            let scrollTimeout;
+            container.addEventListener('scroll', function() {
+                if (isScrolling) return;
+                
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    isScrolling = true;
+                    
+                    const containerRect = container.getBoundingClientRect();
+                    let closestVideo = null;
+                    let closestDistance = Infinity;
+                    let closestIndex = 0;
+                    
+                    videos.forEach((video, index) => {
+                        const rect = video.getBoundingClientRect();
+                        const distance = Math.abs(rect.top - containerRect.top - containerRect.height / 2);
+                        
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestVideo = video;
+                            closestIndex = index;
+                        }
+                    });
+                    
+                    // Play the closest video and pause others
+                    if (closestVideo && currentVideoIndex !== closestIndex) {
+                        videos.forEach((video, index) => {
+                            if (index === closestIndex) {
+                                video.play().catch(e => console.log("Autoplay prevented"));
+                                updatePlayButton(video, true);
+                            } else {
+                                video.pause();
+                                updatePlayButton(video, false);
+                            }
+                        });
+                        currentVideoIndex = closestIndex;
+                    }
+                    
+                    setTimeout(() => {
+                        isScrolling = false;
+                    }, 300);
+                }, 100);
+            });
+            
+            videos.forEach(video => {
+                video.addEventListener('click', function() {
+                    togglePlayForVideo(this);
+                });
+            });
+        });
+        
+        function togglePlay(buttonElement) {
+            const video = buttonElement.closest('.short-item').querySelector('.shorts-video');
+            togglePlayForVideo(video);
+        }
+        
+        function togglePlayForVideo(video) {
+            if (video.paused) {
+                video.play();
+                updatePlayButton(video, true);
+            } else {
+                video.pause();
+                updatePlayButton(video, false);
+            }
+        }
+        
+        function updatePlayButton(video, isPlaying) {
+            const overlay = video.closest('.video-wrapper').querySelector('.play-overlay');
+            const icon = overlay.querySelector('i');
+            
+            if (isPlaying) {
+                overlay.style.opacity = '0';
+                icon.classList.remove('fa-play');
+                icon.classList.add('fa-pause');
+            } else {
+                overlay.style.opacity = '1';
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+            }
+        }
+        
+        function likeVideo(button) {
+            button.classList.toggle('liked');
+            const icon = button.querySelector('i');
+            const countElement = button.querySelector('.count');
+            let count = parseInt(countElement.textContent);
+            
+            if (button.classList.contains('liked')) {
+                count++;
+                icon.classList.add('fas');
+                icon.classList.remove('far');
+            } else {
+                count--;
+                icon.classList.add('far');
+                icon.classList.remove('fas');
+            }
+            
+            countElement.textContent = count;
+        }
+    </script>
+</body>
+</html> -->
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VideoShare Shorts</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="shorts-body">
+    <!-- Header Navigation -->
+    <header>
+        <div class="nav-container">
+            <a href="/" class="logo">VideoShare</a>
+            <nav>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/shorts" class="active">Shorts</a></li>
+                    {% if 'user' in session %}
+                        {% if session.user.role == 'creator' %}
+                            <li><a href="/dashboard">Dashboard</a></li>
+                        {% endif %}
+                        <li><a href="/logout">Logout ({{ session.user.username }})</a></li>
+                    {% else %}
+                        <li><a href="/login">Login</a></li>
+                        <li><a href="/register">Register</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Shorts Container -->
+    <div class="content">
+        <div class="shorts-container" id="shortsContainer">
+            {% for video in videos %}
+            <div class="short-item" data-video-id="{{ video.id }}">
+                <div class="video-wrapper">
+                    <video 
+                        class="shorts-video" 
+                        webkit-playsinline 
+                        playsinline 
+                        preload="metadata"
+                        muted
+                        autoplay
+                        poster="https://placehold.co/400x533/1e1e1e/00f2ea?text={{ video.title|urlencode }}"
+                        data-video-id="{{ video.id }}">
+                        <source src="{{ video.url }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="play-overlay" onclick="togglePlay(this)">
+                        <i class="fas fa-play"></i>
+                    </div>
+                    <!-- Video Actions Overlay -->
+                    <div class="video-actions-overlay">
+                        <button class="stat-button like-button" onclick="likeVideo(this)">
+                            <i class="far fa-heart"></i>
+                            <span class="count">{{ video.like_count|default(0) }}</span>
+                        </button>
+                        <button class="stat-button comment-button" onclick="toggleComments(this)">
+                            <i class="fas fa-comment"></i>
+                            <span class="count">{{ video.comment_count|default(0) }}</span>
+                        </button>
+                        <button class="stat-button share-button">
+                            <i class="fas fa-share"></i>
+                            <span class="count">Share</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Video Info Bar -->
+                <div class="video-info-bar">
+                    <div class="video-header">
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="username">@{{ video.publisher }}</div>
+                        </div>
+                    </div>
+                    <div class="video-content">
+                        <h3 class="video-title">{{ video.title }}</h3>
+                        <p class="video-description">{{ video.description or 'No description provided' }}</p>
+                        <div class="video-stats">
+                            <span>🎬 Publisher: {{ video.publisher }}</span>
+                            <span>🎭 Genre: {{ video.genre or 'General' }}</span>
+                            <span>🔞 Rating: {{ video.age_rating or 'All' }}</span>
+                            {% if video.producer %}
+                            <p><strong>Producer:</strong> {{ video.producer }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="comments-section" style="display: none;">
+                    <h3>💬 Comments & Ratings</h3>
+                    {% if 'user' in session %}
+                    <form method="post" action="/comment" class="comment-form" data-video-id="{{ video.id }}">
+                        <div class="form-group">
+                            <label for="comment-{{ video.id }}">Your Comment</label>
+                            <textarea id="comment-{{ video.id }}" name="comment" rows="3" required placeholder="Share your thoughts..."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="rating-{{ video.id }}">Rating (1-5 stars)</label>
+                                <select id="rating-{{ video.id }}" name="rating" required>
+                                    <option value="">Select rating</option>
+                                    <option value="5">★★★★★ 5 Stars - Excellent</option>
+                                    <option value="4">★★★★☆ 4 Stars - Good</option>
+                                    <option value="3">★★★☆☆ 3 Stars - Average</option>
+                                    <option value="2">★★☆☆☆ 2 Stars - Poor</option>
+                                    <option value="1">★☆☆☆☆ 1 Star - Terrible</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="align-self: flex-end;">
+                                <input type="hidden" name="video_id" value="{{ video.id }}">
+                                <button type="submit" class="btn-primary">Post Comment</button>
+                            </div>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="login-prompt">
+                        <p><a href="/login" class="btn-primary">Login</a> to post comments and ratings.</p>
+                    </div>
+                    {% endif %}
+                    <div class="mt-2">
+                        <h4>Recent Comments ({{ video.comment_count|default(0) }})</h4>
+                        {% if video.comments %}
+                            {% for comment in video.comments %}
+                            <div class="comment">
+                                <div class="comment-header">
+                                    <strong>👤 {{ comment.username }}</strong>
+                                    <div class="rating-stars">
+                                        {% for i in range(comment.rating|int) %}★{% endfor %}
+                                        {% for i in range(5 - comment.rating|int) %}☆{% endfor %}
+                                        ({{ comment.rating }}/5)
+                                    </div>
+                                </div>
+                                <div class="comment-text">{{ comment.comment }}</div>
+                                <div class="comment-date">{{ comment.created_at or 'Just now' }}</div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <h4>📭 No comments yet</h4>
+                                <p>Be the first to comment on this video!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const videos = document.querySelectorAll('.shorts-video');
+            const container = document.getElementById('shortsContainer');
+            let currentVideoIndex = 0;
+            let isScrolling = false;
+
+            // Play first video
+            if (videos.length > 0) {
+                const firstVideo = videos[0];
+                firstVideo.play().catch(e => {
+                    console.log("Autoplay prevented:", e);
+                    updatePlayButton(firstVideo, false);
+                });
+                updatePlayButton(firstVideo, true);
+            }
+
+            // Handle scroll to play/pause videos
+            let scrollTimeout;
+            container.addEventListener('scroll', function() {
+                if (isScrolling) return;
+
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    isScrolling = true;
+
+                    const containerRect = container.getBoundingClientRect();
+                    let closestVideo = null;
+                    let closestDistance = Infinity;
+                    let closestIndex = 0;
+
+                    videos.forEach((video, index) => {
+                        const rect = video.getBoundingClientRect();
+                        const distance = Math.abs(rect.top - containerRect.top - containerRect.height / 2);
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestVideo = video;
+                            closestIndex = index;
+                        }
+                    });
+
+                    if (closestVideo && currentVideoIndex !== closestIndex) {
+                        videos.forEach((video, index) => {
+                            if (index === closestIndex) {
+                                video.play().catch(e => {
+                                    console.log("Autoplay prevented:", e);
+                                    updatePlayButton(video, false);
+                                });
+                                updatePlayButton(video, true);
+                            } else {
+                                video.pause();
+                                updatePlayButton(video, false);
+                            }
+                        });
+                        currentVideoIndex = closestIndex;
+                    }
+
+                    setTimeout(() => {
+                        isScrolling = false;
+                    }, 300);
+                }, 100);
+            });
+
+            // Handle video tap to pause/play
+            videos.forEach(video => {
+                video.addEventListener('click', function() {
+                    togglePlayForVideo(this);
+                });
+            });
+
+            // Handle comment form submissions
+            document.querySelectorAll('.comment-form').forEach(form => {
+                form.addEventListener('submit', function(event) {
+                    handleCommentSubmit(event, this);
+                });
+            });
+        });
+
+        function togglePlay(buttonElement) {
+            const video = buttonElement.closest('.short-item').querySelector('.shorts-video');
+            togglePlayForVideo(video);
+        }
+
+        function togglePlayForVideo(video) {
+            if (video.paused) {
+                video.play();
+                updatePlayButton(video, true);
+            } else {
+                video.pause();
+                updatePlayButton(video, false);
+            }
+        }
+
+        function updatePlayButton(video, isPlaying) {
+            const overlay = video.closest('.video-wrapper').querySelector('.play-overlay');
+            const icon = overlay.querySelector('i');
+            if (isPlaying) {
+                overlay.style.opacity = '0';
+                icon.classList.remove('fa-play');
+                icon.classList.add('fa-pause');
+            } else {
+                overlay.style.opacity = '1';
+                icon.classList.remove('fa-pause');
+                icon.classList.add('fa-play');
+            }
+        }
+
+        function toggleComments(button) {
+            const commentsSection = button.closest('.short-item').querySelector('.comments-section');
+            commentsSection.style.display = commentsSection.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function likeVideo(button) {
+            const videoId = button.closest('.short-item').getAttribute('data-video-id');
+            const isLiked = button.classList.contains('liked');
+            button.classList.toggle('liked');
+            const icon = button.querySelector('i');
+            const countElement = button.querySelector('.count');
+            let count = parseInt(countElement.textContent) || 0;
+            count += isLiked ? -1 : 1;
+            countElement.textContent = count;
+            icon.classList.toggle('fas', !isLiked);
+            icon.classList.toggle('far', isLiked);
+            fetch('/like', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `video_id=${videoId}&liked=${!isLiked}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    countElement.textContent = data.like_count;
+                } else {
+                    button.classList.toggle('liked');
+                    countElement.textContent = parseInt(countElement.textContent) + (isLiked ? 1 : -1);
+                    icon.classList.toggle('fas');
+                    icon.classList.toggle('far');
+                    alert('Failed to update like: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error updating like:', error);
+                button.classList.toggle('liked');
+                countElement.textContent = parseInt(countElement.textContent) + (isLiked ? 1 : -1);
+                icon.classList.toggle('fas');
+                icon.classList.toggle('far');
+                alert('An error occurred while updating the like.');
+            });
+        }
+
+        function handleCommentSubmit(event, form) {
+            event.preventDefault();
+            const videoId = form.querySelector('input[name="video_id"]').value;
+            const comment = form.querySelector('textarea[name="comment"]').value;
+            const rating = form.querySelector('select[name="rating"]').value;
+
+            fetch('/comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `video_id=${videoId}&comment=${encodeURIComponent(comment)}&rating=${rating}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update comment count
+                    const commentButton = form.closest('.short-item').querySelector('.comment-button .count');
+                    commentButton.textContent = parseInt(commentButton.textContent || 0) + 1;
+
+                    // Add new comment to the comments section
+                    const commentsContainer = form.closest('.short-item').querySelector('.mt-2');
+                    const newComment = document.createElement('div');
+                    newComment.className = 'comment';
+                    newComment.innerHTML = `
+                        <div class="comment-header">
+                            <strong>👤 ${data.username}</strong>
+                            <div class="rating-stars">
+                                ${'★'.repeat(data.rating)}${'☆'.repeat(5 - data.rating)}
+                                (${data.rating}/5)
+                            </div>
+                        </div>
+                        <div class="comment-text">${data.comment}</div>
+                        <div class="comment-date">${data.created_at}</div>
+                    `;
+                    const emptyState = commentsContainer.querySelector('.empty-state');
+                    if (emptyState) {
+                        emptyState.remove();
+                    }
+                    commentsContainer.prepend(newComment);
+
+                    // Clear form
+                    form.reset();
+                } else {
+                    alert('Failed to post comment: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error posting comment:', error);
+                alert('An error occurred while posting the comment.');
+            });
+        }
+    </script>
+</body>
+</html>
